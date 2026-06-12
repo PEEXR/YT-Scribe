@@ -1,8 +1,40 @@
 import type { APIRoute } from 'astro';
+import { YoutubeTranscript, YoutubeTranscriptDisabledError, YoutubeTranscriptNotAvailableError, YoutubeTranscriptTooManyRequestError } from 'youtube-transcript';
 
 export const prerender = false;
 
-// Robust parsing of YouTube Video ID from different URL types
+interface LanguageInfo {
+  code: string;
+  name: string;
+}
+
+async function getAvailableLanguages(videoId: string): Promise<LanguageInfo[]> {
+  try {
+    const res = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36,gzip(gfe)',
+      },
+    });
+    if (!res.ok) return [];
+    const html = await res.text();
+    const match = html.match(/ytInitialPlayerResponse\s*=\s*({.*?});/);
+    if (!match) return [];
+    const data = JSON.parse(match[1]);
+    const captionTracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+    if (!Array.isArray(captionTracks)) return [];
+    const seen = new Set<string>();
+    return captionTracks
+      .filter((t: any) => {
+        if (seen.has(t.languageCode)) return false;
+        seen.add(t.languageCode);
+        return true;
+      })
+      .map((t: any) => ({ code: t.languageCode, name: t.name?.simpleText || t.languageCode }));
+  } catch {
+    return [];
+  }
+}
+
 function extractVideoId(url: string): string | null {
   const regexes = [
     /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/ ]{11})/,
@@ -19,6 +51,17 @@ function extractVideoId(url: string): string | null {
   return null;
 }
 
+async function fetchVideoTitle(videoId: string): Promise<string> {
+  try {
+    const res = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+    if (res.ok) {
+      const data = await res.json();
+      return data.title?.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'") || 'YouTube Video';
+    }
+  } catch {}
+  return 'YouTube Video';
+}
+
 export const POST: APIRoute = async ({ request }) => {
   try {
     let body;
@@ -31,7 +74,7 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    const { url } = body;
+    const { url, lang } = body;
     if (!url) {
       return new Response(JSON.stringify({ error: 'Missing "url" parameter in request body.' }), {
         status: 400,
@@ -47,143 +90,34 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    // 1. Fetch YouTube Video Page
-    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-    const response = await fetch(videoUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept-Language': 'en-US,en;q=0.9',
-      }
-    });
+    const availableLanguages = await getAvailableLanguages(videoId);
 
-    if (!response.ok) {
-      return new Response(JSON.stringify({ error: `Failed to load YouTube page: ${response.statusText}` }), {
-        status: response.status,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    const config = lang ? { lang } : undefined;
+    const transcriptLines = await YoutubeTranscript.fetchTranscript(videoId, config);
+
+    let lines = transcriptLines.map(line => ({
+      text: line.text,
+      start: line.offset,
+      duration: line.duration,
+    }));
+
+    // Normalize ms to seconds (youtube-transcript returns ms for srv3 format)
+    if (lines.length > 0 && lines[0].duration > 100) {
+      lines = lines.map(l => ({ ...l, start: l.start / 1000, duration: l.duration / 1000 }));
     }
 
-    const html = await response.text();
+    const title = await fetchVideoTitle(videoId);
 
-    // 2. Extract Title from metadata tags
-    const titleMatch = html.match(/<meta\s+name="title"\s+content="([^"]+)"/i) || 
-                       html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) || 
-                       html.match(/<title>([^<]+)<\/title>/i);
-    let title = titleMatch ? titleMatch[1] : 'YouTube Video';
-    title = title.replace(' - YouTube', '').trim();
-    title = title
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'");
-
-    // 3. Find captionTracks in the page HTML
-    const captionTracksIndex = html.indexOf('"captionTracks":');
-    if (captionTracksIndex === -1) {
-      return new Response(JSON.stringify({ 
-        error: 'No transcripts found for this video. Captions/subtitles are likely disabled or unavailable.' 
-      }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Bracket-balance logic to extract the JSON array matching the key "captionTracks"
-    const jsonStrMatch = html.match(/"captionTracks":(\[[^]*?\])/);
-    if (!jsonStrMatch) {
-      return new Response(JSON.stringify({ error: 'Failed to extract transcript details. YouTube page layout might have changed.' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-    const jsonStr = jsonStrMatch[1];
-    let captionTracks;
-    try {
-      captionTracks = JSON.parse(jsonStr);
-    } catch (e) {
-      return new Response(JSON.stringify({ error: 'Failed to extract transcript details. YouTube page layout might have changed.' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    if (!captionTracks || captionTracks.length === 0) {
-      return new Response(JSON.stringify({ error: 'No subtitles/transcripts available for this video.' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    // 4. Select the best caption track:
-    // Try English manual first, then English auto-generated, then any manual, then first available
-    let selectedTrack = captionTracks.find((track: any) => track.languageCode === 'en' && !track.kind);
-    if (!selectedTrack) {
-      selectedTrack = captionTracks.find((track: any) => track.languageCode === 'en');
-    }
-    if (!selectedTrack) {
-      selectedTrack = captionTracks.find((track: any) => !track.kind);
-    }
-    if (!selectedTrack) {
-      selectedTrack = captionTracks[0];
-    }
-
-    const baseUrl = selectedTrack.baseUrl;
-    if (!baseUrl) {
-      return new Response(JSON.stringify({ error: 'Transcript source URL is missing.' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    // 5. Fetch the actual timed caption JSON using fmt=json3
-    const urlObj = new URL(baseUrl);
-    urlObj.searchParams.set('fmt', 'json3');
-
-    const transcriptResponse = await fetch(urlObj.toString(), {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      }
-    });
-
-    if (!transcriptResponse.ok) {
-      return new Response(JSON.stringify({ error: 'Failed to download transcript tracks from YouTube.' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    const transcriptData = await transcriptResponse.json();
-    if (!transcriptData.events || transcriptData.events.length === 0) {
-      return new Response(JSON.stringify({ error: 'Transcript contains no caption events.' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    // 6. Format the events into start time, duration, and clean text
-    const lines = transcriptData.events
-      .map((event: any) => {
-        const startMs = event.tStartMs || 0;
-        const durationMs = event.dDurationMs || 0;
-        const text = event.segs ? event.segs.map((seg: any) => seg.utf8 || '').join('') : '';
-
-        if (!text.trim()) return null;
-
-        return {
-          text: text.replace(/\s+/g, ' ').trim(),
-          start: startMs / 1000,
-          duration: durationMs / 1000,
-        };
-      })
-      .filter((line: any) => line !== null);
+    const languageCode = transcriptLines[0]?.lang || 'en';
+    const languageName = availableLanguages.find(l => l.code === languageCode)?.name || languageCode;
 
     return new Response(JSON.stringify({
       videoId,
       title,
-      languageCode: selectedTrack.languageCode,
-      languageName: selectedTrack.name?.simpleText || selectedTrack.languageCode,
+      languageCode,
+      languageName,
       lines,
+      availableLanguages,
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
@@ -191,7 +125,34 @@ export const POST: APIRoute = async ({ request }) => {
 
   } catch (error: any) {
     console.error('API Error:', error);
-    return new Response(JSON.stringify({ error: error.message || 'An unexpected error occurred during transcript retrieval.' }), {
+    let message = error.message || 'An unexpected error occurred during transcript retrieval.';
+    message = message.replace(/^\[YoutubeTranscript\] 🚨 /, '');
+
+    if (error instanceof YoutubeTranscriptDisabledError) {
+      return new Response(JSON.stringify({
+        error: message,
+        type: 'TRANSCRIPT_DISABLED',
+        detail: 'This video does not have captions or transcripts available. The uploader may have disabled them.',
+      }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    if (error instanceof YoutubeTranscriptNotAvailableError) {
+      return new Response(JSON.stringify({
+        error: message,
+        type: 'TRANSCRIPT_NOT_AVAILABLE',
+        detail: 'No transcript tracks were found for this video.',
+      }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    if (error instanceof YoutubeTranscriptTooManyRequestError) {
+      return new Response(JSON.stringify({
+        error: message,
+        type: 'RATE_LIMITED',
+        detail: 'YouTube is rate-limiting requests. Please wait a moment and try again.',
+      }), { status: 429, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    return new Response(JSON.stringify({ error: message, type: 'UNKNOWN' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });

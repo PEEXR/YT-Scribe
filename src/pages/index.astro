@@ -48,32 +48,17 @@ import Layout from '../layouts/Layout.astro';
 					<span id="btn-icon">⚡</span>
 				</button>
 			</form>
-			<div class="flex flex-wrap items-center gap-2 text-xs md:text-sm font-bold mt-1">
-				<span>Quick Examples:</span>
-				<button 
-					type="button" 
-					class="example-link border-2 border-black bg-neo-purple text-white px-2 py-0.5 rounded hover:-translate-y-0.5 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer"
-					data-url="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-				>
-					🎵 Never Gonna Give You Up
-				</button>
-				<button 
-					type="button" 
-					class="example-link border-2 border-black bg-neo-cyan text-black px-2 py-0.5 rounded hover:-translate-y-0.5 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer"
-					data-url="https://www.youtube.com/watch?v=ScMzIvxBSi4"
-				>
-					💻 Linus Tech Tips Example
-				</button>
-			</div>
+			
 		</section>
 
 		<!-- Error Alert (hidden by default) -->
-		<div id="error-alert" class="neo-card bg-[#FF6B6B] p-4 text-black hidden flex-col md:flex-row md:items-center justify-between gap-4">
+		<div id="error-alert" class="neo-card p-4 text-black hidden flex-col md:flex-row md:items-center justify-between gap-4">
 			<div class="flex items-center gap-3">
-				<span class="text-3xl">⚠️</span>
+				<span id="error-icon" class="text-3xl">⚠️</span>
 				<div>
-					<h3 class="font-extrabold uppercase text-lg">Extraction Failed</h3>
+					<h3 id="error-heading" class="font-extrabold uppercase text-lg">Extraction Failed</h3>
 					<p id="error-message" class="font-bold text-sm"></p>
+					<p id="error-detail" class="text-xs mt-1 text-black/70 hidden"></p>
 				</div>
 			</div>
 			<button id="close-error-btn" class="neo-btn py-1 px-3 text-xs bg-white hover:bg-gray-100">
@@ -218,6 +203,10 @@ import Layout from '../layouts/Layout.astro';
 								</button>
 							</div>
 
+							<!-- Language Selector -->
+							<select id="lang-selector" class="border-3 border-black rounded-md bg-white px-2 py-1.5 text-xs font-extrabold uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hidden" title="Select transcript language">
+							</select>
+
 							<!-- Action Actions dropdown or buttons -->
 							<button id="copy-btn" class="neo-btn py-2 px-4 text-xs font-extrabold bg-white hover:bg-gray-100 flex gap-1 items-center">
 								📋 <span>Copy</span>
@@ -288,8 +277,12 @@ import Layout from '../layouts/Layout.astro';
 			languageName: string;
 			languageCode: string;
 			lines: TranscriptLine[];
+			availableLanguages?: { code: string; name: string }[];
 			timestamp: number;
 		}
+
+		let currentFetchUrl = '';
+		let currentLang = '';
 
 		let activeTranscript: TranscriptHistoryItem | null = null;
 		let activeView: 'timeline' | 'text' = 'timeline';
@@ -337,6 +330,7 @@ import Layout from '../layouts/Layout.astro';
 		const dlTxtBtn = document.getElementById('dl-txt-btn') as HTMLButtonElement;
 		const dlJsonBtn = document.getElementById('dl-json-btn') as HTMLButtonElement;
 		const resultsCount = document.getElementById('results-count') as HTMLSpanElement;
+		const langSelector = document.getElementById('lang-selector') as HTMLSelectElement;
 
 		// Initialize application
 		document.addEventListener('DOMContentLoaded', () => {
@@ -357,16 +351,6 @@ import Layout from '../layouts/Layout.astro';
 				urlInput.value = '';
 				clearInputBtn.classList.add('hidden');
 				urlInput.focus();
-			});
-
-			// Example clicks
-			document.querySelectorAll('.example-link').forEach(btn => {
-				btn.addEventListener('click', (e) => {
-					const url = (e.currentTarget as HTMLButtonElement).dataset.url || '';
-					urlInput.value = url;
-					clearInputBtn.classList.remove('hidden');
-					fetchForm.dispatchEvent(new Event('submit'));
-				});
 			});
 
 			// Close Error Alert
@@ -391,6 +375,9 @@ import Layout from '../layouts/Layout.astro';
 				clearSearchBtn.classList.add('hidden');
 				handleSearchInput();
 			});
+
+			// Language selector
+			langSelector.addEventListener('change', handleLanguageChange);
 
 			// Clipboard Copy
 			copyBtn.addEventListener('click', copyTranscriptToClipboard);
@@ -431,44 +418,71 @@ import Layout from '../layouts/Layout.astro';
 				return;
 			}
 
+			currentFetchUrl = url;
+			currentLang = '';
+
 			// Start fetch loader
 			setLoading(true);
 
 			try {
-				const res = await fetch('/api/transcript', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify({ url })
-				});
-
-				const data = await res.json();
-				if (!res.ok) {
-					throw new Error(data.error || 'Failed to retrieve transcripts.');
-				}
-
-				// Create history object
-				const historyItem: TranscriptHistoryItem = {
-					videoId: data.videoId,
-					title: data.title,
-					languageName: data.languageName,
-					languageCode: data.languageCode,
-					lines: data.lines,
-					timestamp: Date.now()
-				};
-
-				// Save history item
-				saveToHistory(historyItem);
-				loadHistory();
-
-				// Load active item
-				loadActiveTranscript(historyItem);
-
+				await fetchTranscriptForLang();
 			} catch (err: any) {
 				console.error(err);
-				showError(err.message || 'An error occurred while communicating with the server.');
+				showError(
+					err.message || 'An error occurred while communicating with the server.',
+					err.type,
+					err.detail
+				);
 				showPlaceholder();
+			} finally {
+				setLoading(false);
+			}
+		}
+
+		async function fetchTranscriptForLang(lang?: string) {
+			const body: any = { url: currentFetchUrl };
+			if (lang) body.lang = lang;
+
+			const res = await fetch('/api/transcript', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(body)
+			});
+
+			const data = await res.json();
+			if (!res.ok) {
+				const apiError: any = new Error(data.error || 'Failed to retrieve transcripts.');
+				apiError.type = data.type;
+				apiError.detail = data.detail;
+				throw apiError;
+			}
+
+			const historyItem: TranscriptHistoryItem = {
+				videoId: data.videoId,
+				title: data.title,
+				languageCode: data.languageCode,
+				languageName: data.languageName,
+				lines: data.lines,
+				availableLanguages: data.availableLanguages,
+				timestamp: Date.now()
+			};
+
+			currentLang = data.languageCode;
+
+			saveToHistory(historyItem);
+			loadHistory();
+			loadActiveTranscript(historyItem);
+		}
+
+		async function handleLanguageChange() {
+			const lang = langSelector.value;
+			if (!lang || lang === currentLang || !activeTranscript) return;
+			setLoading(true);
+			try {
+				await fetchTranscriptForLang(lang);
+			} catch (err: any) {
+				console.error(err);
+				showError(err.message, err.type, err.detail);
 			} finally {
 				setLoading(false);
 			}
@@ -514,8 +528,45 @@ import Layout from '../layouts/Layout.astro';
 			viewerLoading.classList.add('hidden');
 		}
 
-		function showError(msg: string) {
+		function showError(msg: string, type?: string, detail?: string) {
+			const errorIcon = document.getElementById('error-icon') as HTMLSpanElement;
+			const errorHeading = document.getElementById('error-heading') as HTMLHeadingElement;
+			const errorDetail = document.getElementById('error-detail') as HTMLParagraphElement;
+
 			errorMessage.innerText = msg;
+			errorAlert.className = 'neo-card p-4 text-black hidden flex-col md:flex-row md:items-center justify-between gap-4';
+
+			if (type === 'TRANSCRIPT_DISABLED') {
+				errorIcon.innerText = '🔇';
+				errorHeading.innerText = 'Transcripts Disabled';
+				errorAlert.classList.add('bg-[#FF6B6B]');
+				if (detail) {
+					errorDetail.innerText = detail;
+					errorDetail.classList.remove('hidden');
+				}
+			} else if (type === 'TRANSCRIPT_NOT_AVAILABLE') {
+				errorIcon.innerText = '📭';
+				errorHeading.innerText = 'No Transcript Available';
+				errorAlert.classList.add('bg-[#FFA94D]');
+				if (detail) {
+					errorDetail.innerText = detail;
+					errorDetail.classList.remove('hidden');
+				}
+			} else if (type === 'RATE_LIMITED') {
+				errorIcon.innerText = '⏳';
+				errorHeading.innerText = 'Rate Limited';
+				errorAlert.classList.add('bg-[#FF6B6B]');
+				if (detail) {
+					errorDetail.innerText = detail;
+					errorDetail.classList.remove('hidden');
+				}
+			} else {
+				errorIcon.innerText = '⚠️';
+				errorHeading.innerText = 'Extraction Failed';
+				errorAlert.classList.add('bg-[#FF6B6B]');
+				errorDetail.classList.add('hidden');
+			}
+
 			errorAlert.classList.remove('hidden');
 			errorAlert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 		}
@@ -541,6 +592,7 @@ import Layout from '../layouts/Layout.astro';
 		// Format dynamic elements of active viewer
 		function loadActiveTranscript(item: TranscriptHistoryItem) {
 			activeTranscript = item;
+			currentLang = item.languageCode;
 			
 			// Show container
 			viewerPlaceholder.classList.add('hidden');
@@ -565,8 +617,28 @@ import Layout from '../layouts/Layout.astro';
 			searchInput.value = '';
 			clearSearchBtn.classList.add('hidden');
 
+			// Populate language selector
+			populateLanguageSelector(item);
+
 			// Render lines
 			renderTranscriptData();
+		}
+
+		function populateLanguageSelector(item: TranscriptHistoryItem) {
+			const langs = item.availableLanguages;
+			langSelector.innerHTML = '';
+			if (!langs || langs.length < 2) {
+				langSelector.classList.add('hidden');
+				return;
+			}
+			langSelector.classList.remove('hidden');
+			langs.forEach(l => {
+				const opt = document.createElement('option');
+				opt.value = l.code;
+				opt.innerText = l.name;
+				if (l.code === item.languageCode) opt.selected = true;
+				langSelector.appendChild(opt);
+			});
 		}
 
 		// Toggle Embedded YouTube Player
@@ -732,14 +804,17 @@ import Layout from '../layouts/Layout.astro';
 			renderTranscriptData();
 		}
 
-		// Copy complete transcript text to clipboard
+		// Copy transcript to clipboard (respects active view mode)
 		async function copyTranscriptToClipboard() {
 			if (!activeTranscript) return;
 
-			const plainText = activeTranscript.lines.map(line => `[${formatTime(line.start)}] ${line.text}`).join('\n');
+			const lines = activeTranscript.lines;
+			const text = activeView === 'text'
+				? lines.map(line => line.text).join('\n')
+				: lines.map(line => `[${formatTime(line.start)}] ${line.text}`).join('\n');
 			
 			try {
-				await navigator.clipboard.writeText(plainText);
+				await navigator.clipboard.writeText(text);
 				
 				// Show visual indicator on button
 				const origHtml = copyBtn.innerHTML;
@@ -758,9 +833,14 @@ import Layout from '../layouts/Layout.astro';
 			}
 		}
 
-		// Download text formatting
+		// Download text formatting (respects active view mode)
 		function downloadAsText() {
 			if (!activeTranscript) return;
+
+			const lines = activeTranscript.lines;
+			const body = activeView === 'text'
+				? lines.map(line => line.text).join('\n')
+				: lines.map(line => `[${formatTime(line.start)}] ${line.text}`).join('\n');
 
 			const textContent = `YT-Scribe Transcript Export\n` + 
 				`Title: ${activeTranscript.title}\n` +
@@ -768,7 +848,7 @@ import Layout from '../layouts/Layout.astro';
 				`Language: ${activeTranscript.languageName}\n` +
 				`Date Extracted: ${new Date(activeTranscript.timestamp).toLocaleString()}\n` +
 				`========================================================================\n\n` +
-				activeTranscript.lines.map(line => `[${formatTime(line.start)}] ${line.text}`).join('\n');
+				body;
 
 			downloadFile(textContent, `${sanitizeFilename(activeTranscript.title)}-transcript.txt`, 'text/plain');
 		}
