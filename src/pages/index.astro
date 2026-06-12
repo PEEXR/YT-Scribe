@@ -1,11 +1,947 @@
 ---
-import Welcome from '../components/Welcome.astro';
 import Layout from '../layouts/Layout.astro';
-
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
 ---
 
-<Layout>
-	<Welcome />
+<Layout title="YT-Scribe 📝 | YouTube Transcript Extractor">
+	<main class="max-w-7xl mx-auto p-4 md:p-8 flex flex-col gap-8 min-h-screen">
+		<!-- Header Banner -->
+		<header class="neo-card bg-neo-yellow p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+			<div>
+				<h1 class="text-3xl md:text-5xl font-extrabold uppercase tracking-tight mb-2">
+					YT-Scribe 📝
+				</h1>
+				<p class="text-md md:text-lg font-bold text-black/80 max-w-xl">
+					The Neo-Brutalist YouTube Transcript Extractor. Paste a link, fetch subtitles, search keywords, and seek directly inside the video.
+				</p>
+			</div>
+			<div class="flex items-center gap-2 border-2 border-black bg-white p-3 rounded-md shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] w-fit">
+				<span class="inline-block w-3 h-3 rounded-full bg-green-500 animate-pulse border-2 border-black"></span>
+				<span class="font-bold text-xs uppercase tracking-wider">Local Archives Online</span>
+			</div>
+		</header>
+
+		<!-- Paste Section -->
+		<section class="neo-card p-6 bg-white flex flex-col gap-4">
+			<h2 class="text-xl md:text-2xl font-black uppercase">
+				1. Paste Video Link
+			</h2>
+			<form id="fetch-form" class="flex flex-col md:flex-row gap-4">
+				<div class="flex-1 relative">
+					<input 
+						type="url" 
+						id="url-input" 
+						required 
+						placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ" 
+						class="neo-input w-full pr-12 text-md md:text-lg"
+					/>
+					<button 
+						type="button" 
+						id="clear-input-btn" 
+						class="absolute right-3 top-1/2 -translate-y-1/2 font-bold text-lg text-black/50 hover:text-black hidden"
+						title="Clear input"
+					>
+						✖
+					</button>
+				</div>
+				<button type="submit" id="submit-btn" class="neo-btn font-extrabold text-md md:text-lg flex gap-2">
+					<span>Fetch Transcript</span>
+					<span id="btn-icon">⚡</span>
+				</button>
+			</form>
+			<div class="flex flex-wrap items-center gap-2 text-xs md:text-sm font-bold mt-1">
+				<span>Quick Examples:</span>
+				<button 
+					type="button" 
+					class="example-link border-2 border-black bg-neo-purple text-white px-2 py-0.5 rounded hover:-translate-y-0.5 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer"
+					data-url="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+				>
+					🎵 Never Gonna Give You Up
+				</button>
+				<button 
+					type="button" 
+					class="example-link border-2 border-black bg-neo-cyan text-black px-2 py-0.5 rounded hover:-translate-y-0.5 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer"
+					data-url="https://www.youtube.com/watch?v=ScMzIvxBSi4"
+				>
+					💻 Linus Tech Tips Example
+				</button>
+			</div>
+		</section>
+
+		<!-- Error Alert (hidden by default) -->
+		<div id="error-alert" class="neo-card bg-[#FF6B6B] p-4 text-black hidden flex-col md:flex-row md:items-center justify-between gap-4">
+			<div class="flex items-center gap-3">
+				<span class="text-3xl">⚠️</span>
+				<div>
+					<h3 class="font-extrabold uppercase text-lg">Extraction Failed</h3>
+					<p id="error-message" class="font-bold text-sm"></p>
+				</div>
+			</div>
+			<button id="close-error-btn" class="neo-btn py-1 px-3 text-xs bg-white hover:bg-gray-100">
+				Dismiss
+			</button>
+		</div>
+
+		<!-- Dashboard Contents -->
+		<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+			
+			<!-- Left Panel: History Archives -->
+			<section class="lg:col-span-4 flex flex-col gap-6 lg:sticky lg:top-8">
+				<div class="neo-card p-6 bg-white flex flex-col gap-4">
+					<div class="flex justify-between items-center">
+						<h2 class="text-xl font-black uppercase">
+							Archives 📂
+						</h2>
+						<button 
+							type="button" 
+							id="clear-history-btn" 
+							class="neo-btn neo-btn-red py-1 px-3 text-xs uppercase"
+							title="Clear all stored history"
+						>
+							Clear All
+						</button>
+					</div>
+					<div id="history-container" class="flex flex-col gap-3 max-h-[500px] overflow-y-auto pr-1">
+						<!-- JavaScript inserts history items here -->
+						<div id="empty-history" class="text-center py-8 border-2 border-dashed border-black/30 rounded-md text-black/50 font-bold text-sm">
+							Your local transcript archive is empty. 
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<!-- Right Panel: Active Viewer -->
+			<section class="lg:col-span-8 flex flex-col gap-6">
+				
+				<!-- Placeholder State -->
+				<div id="viewer-placeholder" class="neo-card p-12 bg-white text-center flex flex-col items-center justify-center gap-4 min-h-[400px]">
+					<span class="text-6xl animate-bounce">📺</span>
+					<h2 class="text-2xl font-black uppercase tracking-wide">No Active Transcript</h2>
+					<p class="text-black/60 font-bold max-w-md">
+						Enter a YouTube video URL above or load a saved record from your archives to view and search the transcript.
+					</p>
+				</div>
+
+				<!-- Loading State -->
+				<div id="viewer-loading" class="neo-card p-12 bg-white text-center hidden flex-col items-center justify-center gap-6 min-h-[400px]">
+					<div class="w-16 h-16 border-4 border-black border-t-neo-yellow rounded-full animate-spin"></div>
+					<div class="flex flex-col gap-2">
+						<h2 class="text-2xl font-black uppercase tracking-widest animate-pulse">Extracting Transcript...</h2>
+						<p class="text-black/60 font-bold">Connecting to the YouTube matrix and extracting text content.</p>
+					</div>
+					<div class="w-full max-w-md border-3 border-black bg-gray-100 h-6 p-1 rounded-md">
+						<div class="bg-neo-purple h-full w-[70%] border-r-3 border-black rounded-sm animate-[pulse_1.5s_infinite]"></div>
+					</div>
+				</div>
+
+				<!-- Active Transcript Viewer -->
+				<div id="viewer-content" class="neo-card bg-white hidden overflow-hidden flex flex-col">
+					
+					<!-- Header / Meta section -->
+					<div class="p-6 border-b-3 border-black bg-gray-50 flex flex-col gap-4">
+						<div class="flex flex-col md:flex-row gap-4 items-start">
+							<!-- Image Thumbnail -->
+							<div class="w-full md:w-48 aspect-video border-3 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-black overflow-hidden shrink-0">
+								<img id="video-thumbnail" src="" alt="Video Thumbnail" class="w-full h-full object-cover" />
+							</div>
+							<!-- Details -->
+							<div class="flex-1 flex flex-col gap-2">
+								<span id="video-lang-tag" class="w-fit border-2 border-black bg-neo-cyan text-black px-2 py-0.5 rounded text-xs font-black uppercase tracking-wider">
+									Language
+								</span>
+								<h3 id="video-title" class="text-lg md:text-xl font-extrabold uppercase leading-tight line-clamp-3">
+									Video Title
+								</h3>
+								<div class="flex gap-2 items-center text-xs font-bold text-black/60">
+									<span>Video ID:</span>
+									<span id="video-id-text" class="font-mono bg-white border border-black/30 px-1.5 py-0.5 rounded text-black"></span>
+								</div>
+							</div>
+						</div>
+
+						<!-- Video Player Section -->
+						<div id="player-container" class="w-full aspect-video border-3 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hidden overflow-hidden">
+							<iframe 
+								id="yt-player" 
+								class="w-full h-full"
+								src="" 
+								title="YouTube video player" 
+								frameborder="0" 
+								allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+								allowfullscreen
+							></iframe>
+						</div>
+						
+						<!-- Player Toggle Button -->
+						<button 
+							type="button" 
+							id="toggle-player-btn" 
+							class="neo-btn neo-btn-purple py-2 px-4 text-xs font-extrabold uppercase self-start"
+						>
+							🎬 Show Video Player
+						</button>
+					</div>
+
+					<!-- Toolbar (Search, Filter, Export) -->
+					<div class="p-6 border-b-3 border-black flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white">
+						<!-- Search box -->
+						<div class="flex-1 relative max-w-md">
+							<input 
+								type="text" 
+								id="search-input" 
+								placeholder="Search words in transcript..." 
+								class="neo-input w-full py-2 pl-9 text-sm"
+							/>
+							<span class="absolute left-3 top-1/2 -translate-y-1/2 text-black/40">🔍</span>
+							<button 
+								id="clear-search-btn" 
+								class="absolute right-3 top-1/2 -translate-y-1/2 font-bold text-xs text-black/50 hover:text-black hidden"
+							>
+								✖
+							</button>
+						</div>
+
+						<!-- Toggles and Exports -->
+						<div class="flex flex-wrap items-center gap-3 shrink-0">
+							<!-- Format Toggle -->
+							<div class="flex border-3 border-black rounded-md overflow-hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+								<button 
+									id="btn-view-timeline" 
+									class="px-4 py-2 text-xs font-extrabold uppercase bg-neo-yellow text-black border-r-2 border-black"
+								>
+									Timeline
+								</button>
+								<button 
+									id="btn-view-text" 
+									class="px-4 py-2 text-xs font-extrabold uppercase bg-white text-black hover:bg-gray-100"
+								>
+									Plain Text
+								</button>
+							</div>
+
+							<!-- Action Actions dropdown or buttons -->
+							<button id="copy-btn" class="neo-btn py-2 px-4 text-xs font-extrabold bg-white hover:bg-gray-100 flex gap-1 items-center">
+								📋 <span>Copy</span>
+							</button>
+							
+							<div class="relative inline-block text-left" id="download-menu-container">
+								<button 
+									type="button"
+									id="download-btn" 
+									class="neo-btn neo-btn-cyan py-2 px-4 text-xs font-extrabold flex gap-1 items-center"
+								>
+									📥 <span>Download</span>
+								</button>
+								<div id="download-dropdown" class="origin-top-right absolute right-0 mt-2 w-40 border-3 border-black bg-white rounded-md shadow-[4px_4px_0px_rgba(0,0,0,1)] z-50 hidden">
+									<div class="py-1">
+										<button id="dl-txt-btn" class="w-full text-left px-4 py-2 text-xs font-bold hover:bg-neo-yellow border-b-2 border-black">
+											Text File (.txt)
+										</button>
+										<button id="dl-json-btn" class="w-full text-left px-4 py-2 text-xs font-bold hover:bg-neo-yellow">
+											JSON File (.json)
+										</button>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Content Viewport -->
+					<div class="flex-1 p-6 max-h-[600px] overflow-y-auto bg-gray-50" id="transcript-viewport">
+						<!-- Timeline view content -->
+						<div id="view-timeline-content" class="flex flex-col gap-3">
+							<!-- Dynamic lines -->
+						</div>
+
+						<!-- Plain text view content -->
+						<div id="view-text-content" class="hidden text-md leading-relaxed font-medium text-black/80 space-y-4 max-w-3xl mx-auto bg-white p-6 border-3 border-black rounded-md shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+							<!-- Dynamic paragraphs -->
+						</div>
+					</div>
+
+					<!-- Footer details -->
+					<div class="p-4 bg-white border-t-3 border-black flex justify-between items-center text-xs font-bold text-black/60">
+						<span id="results-count">Lines: 0</span>
+						<span>YT-Scribe Engine v1.0</span>
+					</div>
+				</div>
+
+			</section>
+		</div>
+	</main>
+
+	<!-- Footer branding -->
+	<footer class="max-w-7xl mx-auto p-4 md:p-8 text-center text-sm font-bold border-t-3 border-black bg-white/50 neo-card mt-8 mb-8">
+		<p>© 2026 YT-Scribe. Build using Astro, Tailwind CSS v4, and NEO-UI Design Language.</p>
+	</footer>
+
+	<script>
+		// Type definitions and local State
+		interface TranscriptLine {
+			text: string;
+			start: number;
+			duration: number;
+		}
+
+		interface TranscriptHistoryItem {
+			videoId: string;
+			title: string;
+			languageName: string;
+			languageCode: string;
+			lines: TranscriptLine[];
+			timestamp: number;
+		}
+
+		let activeTranscript: TranscriptHistoryItem | null = null;
+		let activeView: 'timeline' | 'text' = 'timeline';
+		let isPlayerVisible = false;
+
+		// DOM selectors
+		const fetchForm = document.getElementById('fetch-form') as HTMLFormElement;
+		const urlInput = document.getElementById('url-input') as HTMLInputElement;
+		const clearInputBtn = document.getElementById('clear-input-btn') as HTMLButtonElement;
+		const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+		const btnIcon = document.getElementById('btn-icon') as HTMLSpanElement;
+
+		const errorAlert = document.getElementById('error-alert') as HTMLDivElement;
+		const errorMessage = document.getElementById('error-message') as HTMLParagraphElement;
+		const closeErrorBtn = document.getElementById('close-error-btn') as HTMLButtonElement;
+
+		const historyContainer = document.getElementById('history-container') as HTMLDivElement;
+		const emptyHistory = document.getElementById('empty-history') as HTMLDivElement;
+		const clearHistoryBtn = document.getElementById('clear-history-btn') as HTMLButtonElement;
+
+		const viewerPlaceholder = document.getElementById('viewer-placeholder') as HTMLDivElement;
+		const viewerLoading = document.getElementById('viewer-loading') as HTMLDivElement;
+		const viewerContent = document.getElementById('viewer-content') as HTMLDivElement;
+
+		const videoThumbnail = document.getElementById('video-thumbnail') as HTMLImageElement;
+		const videoLangTag = document.getElementById('video-lang-tag') as HTMLSpanElement;
+		const videoTitle = document.getElementById('video-title') as HTMLHeadingElement;
+		const videoIdText = document.getElementById('video-id-text') as HTMLSpanElement;
+
+		const playerContainer = document.getElementById('player-container') as HTMLDivElement;
+		const ytPlayer = document.getElementById('yt-player') as HTMLIFrameElement;
+		const togglePlayerBtn = document.getElementById('toggle-player-btn') as HTMLButtonElement;
+
+		const searchInput = document.getElementById('search-input') as HTMLInputElement;
+		const clearSearchBtn = document.getElementById('clear-search-btn') as HTMLButtonElement;
+
+		const btnViewTimeline = document.getElementById('btn-view-timeline') as HTMLButtonElement;
+		const btnViewText = document.getElementById('btn-view-text') as HTMLButtonElement;
+		const viewTimelineContent = document.getElementById('view-timeline-content') as HTMLDivElement;
+		const viewTextContent = document.getElementById('view-text-content') as HTMLDivElement;
+
+		const copyBtn = document.getElementById('copy-btn') as HTMLButtonElement;
+		const downloadBtn = document.getElementById('download-btn') as HTMLButtonElement;
+		const downloadDropdown = document.getElementById('download-dropdown') as HTMLDivElement;
+		const dlTxtBtn = document.getElementById('dl-txt-btn') as HTMLButtonElement;
+		const dlJsonBtn = document.getElementById('dl-json-btn') as HTMLButtonElement;
+		const resultsCount = document.getElementById('results-count') as HTMLSpanElement;
+
+		// Initialize application
+		document.addEventListener('DOMContentLoaded', () => {
+			loadHistory();
+			setupEventListeners();
+		});
+
+		// Event handlers setup
+		function setupEventListeners() {
+			// Form Submission
+			fetchForm.addEventListener('submit', handleFetchSubmit);
+
+			// Input helpers
+			urlInput.addEventListener('input', () => {
+				clearInputBtn.classList.toggle('hidden', !urlInput.value);
+			});
+			clearInputBtn.addEventListener('click', () => {
+				urlInput.value = '';
+				clearInputBtn.classList.add('hidden');
+				urlInput.focus();
+			});
+
+			// Example clicks
+			document.querySelectorAll('.example-link').forEach(btn => {
+				btn.addEventListener('click', (e) => {
+					const url = (e.currentTarget as HTMLButtonElement).dataset.url || '';
+					urlInput.value = url;
+					clearInputBtn.classList.remove('hidden');
+					fetchForm.dispatchEvent(new Event('submit'));
+				});
+			});
+
+			// Close Error Alert
+			closeErrorBtn.addEventListener('click', () => {
+				errorAlert.classList.add('hidden');
+			});
+
+			// Clear History
+			clearHistoryBtn.addEventListener('click', handleClearHistory);
+
+			// View Toggle Buttons
+			btnViewTimeline.addEventListener('click', () => setViewMode('timeline'));
+			btnViewText.addEventListener('click', () => setViewMode('text'));
+
+			// Toggle Player
+			togglePlayerBtn.addEventListener('click', togglePlayer);
+
+			// Search input filter
+			searchInput.addEventListener('input', handleSearchInput);
+			clearSearchBtn.addEventListener('click', () => {
+				searchInput.value = '';
+				clearSearchBtn.classList.add('hidden');
+				handleSearchInput();
+			});
+
+			// Clipboard Copy
+			copyBtn.addEventListener('click', copyTranscriptToClipboard);
+
+			// Download dropdown click and click-outside listeners
+			downloadBtn.addEventListener('click', (e) => {
+				e.stopPropagation();
+				downloadDropdown.classList.toggle('hidden');
+			});
+			document.addEventListener('click', () => {
+				downloadDropdown.classList.add('hidden');
+			});
+			dlTxtBtn.addEventListener('click', downloadAsText);
+			dlJsonBtn.addEventListener('click', downloadAsJson);
+		}
+
+		// Parse the video transcript from user request
+		async function handleFetchSubmit(e: Event) {
+			e.preventDefault();
+			const url = urlInput.value.trim();
+			if (!url) return;
+
+			// Close previous errors
+			errorAlert.classList.add('hidden');
+
+			// Try to extract video ID from input directly
+			const videoId = extractVideoId(url);
+			if (!videoId) {
+				showError("Invalid YouTube URL. Please supply a valid Watch, Share, Shorts, or Embed URL.");
+				return;
+			}
+
+			// Check if we already have this in cache/history
+			const cached = getHistoryItem(videoId);
+			if (cached) {
+				// Instantly load from cache
+				loadActiveTranscript(cached);
+				return;
+			}
+
+			// Start fetch loader
+			setLoading(true);
+
+			try {
+				const res = await fetch('/api/transcript', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({ url })
+				});
+
+				const data = await res.json();
+				if (!res.ok) {
+					throw new Error(data.error || 'Failed to retrieve transcripts.');
+				}
+
+				// Create history object
+				const historyItem: TranscriptHistoryItem = {
+					videoId: data.videoId,
+					title: data.title,
+					languageName: data.languageName,
+					languageCode: data.languageCode,
+					lines: data.lines,
+					timestamp: Date.now()
+				};
+
+				// Save history item
+				saveToHistory(historyItem);
+				loadHistory();
+
+				// Load active item
+				loadActiveTranscript(historyItem);
+
+			} catch (err: any) {
+				console.error(err);
+				showError(err.message || 'An error occurred while communicating with the server.');
+				showPlaceholder();
+			} finally {
+				setLoading(false);
+			}
+		}
+
+		// Extract YouTube Video ID
+		function extractVideoId(url: string): string | null {
+			const regexes = [
+				/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/ ]{11})/,
+				/youtube\.com\/shorts\/([^"&?\/ ]{11})/,
+				/youtube\.com\/live\/([^"&?\/ ]{11})/,
+				/youtube\.com\/embed\/([^"&?\/ ]{11})/
+			];
+			for (const regex of regexes) {
+				const match = url.match(regex);
+				if (match && match[1]) {
+					return match[1];
+				}
+			}
+			return null;
+		}
+
+		// Loader states
+		function setLoading(isLoading: boolean) {
+			if (isLoading) {
+				viewerPlaceholder.classList.add('hidden');
+				viewerContent.classList.add('hidden');
+				viewerLoading.classList.remove('hidden');
+				submitBtn.disabled = true;
+				submitBtn.classList.add('opacity-70');
+				btnIcon.innerText = '⏳';
+			} else {
+				viewerLoading.classList.add('hidden');
+				submitBtn.disabled = false;
+				submitBtn.classList.remove('opacity-70');
+				btnIcon.innerText = '⚡';
+			}
+		}
+
+		function showPlaceholder() {
+			viewerPlaceholder.classList.remove('hidden');
+			viewerContent.classList.add('hidden');
+			viewerLoading.classList.add('hidden');
+		}
+
+		function showError(msg: string) {
+			errorMessage.innerText = msg;
+			errorAlert.classList.remove('hidden');
+			errorAlert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+		}
+
+		// Set view mode (Timeline or Plain Text)
+		function setViewMode(mode: 'timeline' | 'text') {
+			activeView = mode;
+			
+			// Button highlight swap
+			if (mode === 'timeline') {
+				btnViewTimeline.className = "px-4 py-2 text-xs font-extrabold uppercase bg-neo-yellow text-black border-r-2 border-black";
+				btnViewText.className = "px-4 py-2 text-xs font-extrabold uppercase bg-white text-black hover:bg-gray-100";
+				viewTimelineContent.classList.remove('hidden');
+				viewTextContent.classList.add('hidden');
+			} else {
+				btnViewTimeline.className = "px-4 py-2 text-xs font-extrabold uppercase bg-white text-black hover:bg-gray-100 border-r-2 border-black";
+				btnViewText.className = "px-4 py-2 text-xs font-extrabold uppercase bg-neo-yellow text-black";
+				viewTimelineContent.classList.add('hidden');
+				viewTextContent.classList.remove('hidden');
+			}
+		}
+
+		// Format dynamic elements of active viewer
+		function loadActiveTranscript(item: TranscriptHistoryItem) {
+			activeTranscript = item;
+			
+			// Show container
+			viewerPlaceholder.classList.add('hidden');
+			viewerLoading.classList.add('hidden');
+			viewerContent.classList.remove('hidden');
+
+			// Meta values
+			videoTitle.innerText = item.title;
+			videoLangTag.innerText = `🗣️ ${item.languageName}`;
+			videoIdText.innerText = item.videoId;
+			videoThumbnail.src = `https://img.youtube.com/vi/${item.videoId}/mqdefault.jpg`;
+
+			// Reset player state
+			isPlayerVisible = false;
+			playerContainer.classList.add('hidden');
+			ytPlayer.src = '';
+			togglePlayerBtn.innerText = '🎬 Show Video Player';
+			togglePlayerBtn.classList.remove('neo-btn-red');
+			togglePlayerBtn.classList.add('neo-btn-purple');
+
+			// Reset searches
+			searchInput.value = '';
+			clearSearchBtn.classList.add('hidden');
+
+			// Render lines
+			renderTranscriptData();
+		}
+
+		// Toggle Embedded YouTube Player
+		function togglePlayer() {
+			if (!activeTranscript) return;
+			
+			isPlayerVisible = !isPlayerVisible;
+			if (isPlayerVisible) {
+				playerContainer.classList.remove('hidden');
+				ytPlayer.src = `https://www.youtube.com/embed/${activeTranscript.videoId}?enablejsapi=1&autoplay=1`;
+				togglePlayerBtn.innerText = '❌ Close Video Player';
+				togglePlayerBtn.classList.remove('neo-btn-purple');
+				togglePlayerBtn.classList.add('neo-btn-red');
+			} else {
+				playerContainer.classList.add('hidden');
+				ytPlayer.src = '';
+				togglePlayerBtn.innerText = '🎬 Show Video Player';
+				togglePlayerBtn.classList.remove('neo-btn-red');
+				togglePlayerBtn.classList.add('neo-btn-purple');
+			}
+		}
+
+		// Seeks video on click of timeline timestamp
+		function seekPlayerTo(seconds: number) {
+			if (!isPlayerVisible) {
+				// Automatically open the player if closed
+				togglePlayer();
+			}
+			
+			// Communicate seeking command directly using JSON PostMessage API of YouTube Embedded Player
+			try {
+				ytPlayer.contentWindow?.postMessage(JSON.stringify({
+					event: 'command',
+					func: 'seekTo',
+					args: [seconds, true]
+				}), '*');
+				
+				// Send a resume command just in case
+				ytPlayer.contentWindow?.postMessage(JSON.stringify({
+					event: 'command',
+					func: 'playVideo',
+					args: []
+				}), '*');
+			} catch (err) {
+				console.error("Failed to post seek message:", err);
+			}
+		}
+
+		// Render active transcript lines into viewport
+		function renderTranscriptData() {
+			if (!activeTranscript) return;
+
+			const query = searchInput.value.trim().toLowerCase();
+			const matchedLines = activeTranscript.lines.filter(line => 
+				line.text.toLowerCase().includes(query)
+			);
+
+			resultsCount.innerText = `Lines: ${matchedLines.length} / ${activeTranscript.lines.length}`;
+
+			// 1. Render Timeline View
+			viewTimelineContent.innerHTML = '';
+			if (matchedLines.length === 0) {
+				viewTimelineContent.innerHTML = `
+					<div class="text-center py-12 text-black/50 font-bold border-2 border-dashed border-black/20 rounded-md bg-white">
+						No transcript lines found matching "${searchInput.value}".
+					</div>
+				`;
+			} else {
+				matchedLines.forEach((line) => {
+					const row = document.createElement('div');
+					row.className = "flex gap-4 p-3 bg-white border-2 border-black rounded shadow-[2px_2px_0px_rgba(0,0,0,1)] items-center";
+					
+					// Timestamp Button
+					const timeBtn = document.createElement('button');
+					timeBtn.type = 'button';
+					timeBtn.className = "border border-black bg-neo-yellow text-black font-extrabold text-xs px-2.5 py-1 rounded hover:bg-neo-yellow-hover hover:scale-105 active:scale-95 transition-all shadow-[1.5px_1.5px_0px_rgba(0,0,0,1)] cursor-pointer";
+					timeBtn.innerText = formatTime(line.start);
+					timeBtn.addEventListener('click', () => seekPlayerTo(line.start));
+
+					// Content Line
+					const lineText = document.createElement('p');
+					lineText.className = "text-sm font-bold text-black/80 flex-1 leading-snug";
+					lineText.innerHTML = highlightHTML(line.text, query);
+
+					row.appendChild(timeBtn);
+					row.appendChild(lineText);
+					viewTimelineContent.appendChild(row);
+				});
+			}
+
+			// 2. Render Plain Text View (grouped into logical paragraph blocks of ~6 sentences)
+			viewTextContent.innerHTML = '';
+			if (matchedLines.length === 0) {
+				viewTextContent.innerHTML = `<p class="text-center text-black/40 font-bold">No matching results found.</p>`;
+			} else {
+				let paragraphText = '';
+				let sentenceCount = 0;
+
+				matchedLines.forEach((line, index) => {
+					// Check if there is an ending punctuation to delineate sentences
+					const text = line.text;
+					const hasPunctuation = /[.!?]$/.test(text);
+
+					paragraphText += text + ' ';
+					if (hasPunctuation) sentenceCount++;
+
+					// Break into paragraph block every ~5 sentences or 60 words
+					if (sentenceCount >= 5 || (index > 0 && index % 15 === 0) || index === matchedLines.length - 1) {
+						const pEl = document.createElement('p');
+						pEl.className = "text-md leading-relaxed font-semibold text-black/80";
+						pEl.innerHTML = highlightHTML(paragraphText.trim(), query);
+						viewTextContent.appendChild(pEl);
+						
+						paragraphText = '';
+						sentenceCount = 0;
+					}
+				});
+			}
+		}
+
+		// Helper to highlight matching queries in HTML safely
+		function highlightHTML(text: string, query: string): string {
+			if (!query) return escapeHtml(text);
+			const escapedQuery = escapeRegex(query);
+			const safeText = escapeHtml(text);
+			
+			// Highlight matched terms with custom styling mark
+			const regex = new RegExp(`(${escapedQuery})`, 'gi');
+			return safeText.replace(regex, `<mark class="bg-neo-yellow text-black font-extrabold px-1 rounded-sm border border-black">$1</mark>`);
+		}
+
+		function escapeRegex(str: string): string {
+			return str.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&');
+		}
+
+		function escapeHtml(str: string): string {
+			return str
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;')
+				.replace(/'/g, '&#39;');
+		}
+
+		// Format elapsed time (seconds -> MM:SS or HH:MM:SS)
+		function formatTime(totalSeconds: number): string {
+			const hrs = Math.floor(totalSeconds / 3600);
+			const mins = Math.floor((totalSeconds % 3600) / 60);
+			const secs = Math.floor(totalSeconds % 60);
+
+			const pad = (num: number) => String(num).padStart(2, '0');
+
+			if (hrs > 0) {
+				return `${hrs}:${pad(mins)}:${pad(secs)}`;
+			}
+			return `${mins}:${pad(secs)}`;
+		}
+
+		// Realtime search filtering
+		function handleSearchInput() {
+			const hasText = !!searchInput.value;
+			clearSearchBtn.classList.toggle('hidden', !hasText);
+			renderTranscriptData();
+		}
+
+		// Copy complete transcript text to clipboard
+		async function copyTranscriptToClipboard() {
+			if (!activeTranscript) return;
+
+			const plainText = activeTranscript.lines.map(line => `[${formatTime(line.start)}] ${line.text}`).join('\n');
+			
+			try {
+				await navigator.clipboard.writeText(plainText);
+				
+				// Show visual indicator on button
+				const origHtml = copyBtn.innerHTML;
+				copyBtn.innerHTML = `✅ <span class="font-extrabold">Copied!</span>`;
+				copyBtn.classList.remove('bg-white');
+				copyBtn.classList.add('bg-neo-green');
+				
+				setTimeout(() => {
+					copyBtn.innerHTML = origHtml;
+					copyBtn.classList.remove('bg-neo-green');
+					copyBtn.classList.add('bg-white');
+				}, 2000);
+
+			} catch (err) {
+				alert('Failed to copy to clipboard.');
+			}
+		}
+
+		// Download text formatting
+		function downloadAsText() {
+			if (!activeTranscript) return;
+
+			const textContent = `YT-Scribe Transcript Export\n` + 
+				`Title: ${activeTranscript.title}\n` +
+				`URL: https://www.youtube.com/watch?v=${activeTranscript.videoId}\n` +
+				`Language: ${activeTranscript.languageName}\n` +
+				`Date Extracted: ${new Date(activeTranscript.timestamp).toLocaleString()}\n` +
+				`========================================================================\n\n` +
+				activeTranscript.lines.map(line => `[${formatTime(line.start)}] ${line.text}`).join('\n');
+
+			downloadFile(textContent, `${sanitizeFilename(activeTranscript.title)}-transcript.txt`, 'text/plain');
+		}
+
+		// Download json formatting
+		function downloadAsJson() {
+			if (!activeTranscript) return;
+			const jsonString = JSON.stringify(activeTranscript, null, 2);
+			downloadFile(jsonString, `${sanitizeFilename(activeTranscript.title)}-transcript.json`, 'application/json');
+		}
+
+		// Triggers file download in client
+		function downloadFile(content: string, filename: string, contentType: string) {
+			const blob = new Blob([content], { type: contentType });
+			const url = URL.createObjectURL(blob);
+			const link = document.createElement('a');
+			link.href = url;
+			link.download = filename;
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			URL.revokeObjectURL(url);
+		}
+
+		function sanitizeFilename(title: string): string {
+			return title
+				.toLowerCase()
+				.replace(/[^a-z0-9]+/g, '_')
+				.replace(/(^_+|_+$)/g, '')
+				.substring(0, 50);
+		}
+
+		/* History Manager (localStorage) */
+		const HISTORY_KEY = 'yt_scribe_archives';
+		const MAX_HISTORY_ITEMS = 15;
+
+		function getHistory(): TranscriptHistoryItem[] {
+			try {
+				const raw = localStorage.getItem(HISTORY_KEY);
+				return raw ? JSON.parse(raw) : [];
+			} catch (e) {
+				return [];
+			}
+		}
+
+		function getHistoryItem(videoId: string): TranscriptHistoryItem | undefined {
+			const history = getHistory();
+			return history.find(item => item.videoId === videoId);
+		}
+
+		function saveToHistory(item: TranscriptHistoryItem) {
+			let history = getHistory();
+			
+			// Remove duplicates if exists
+			history = history.filter(existing => existing.videoId !== item.videoId);
+			
+			// Prepend new item
+			history.unshift(item);
+			
+			// Limit queue size
+			if (history.length > MAX_HISTORY_ITEMS) {
+				history = history.slice(0, MAX_HISTORY_ITEMS);
+			}
+
+			try {
+				localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+			} catch (e) {
+				console.error("Storage error:", e);
+				// If quota error, clear oldest
+				if (history.length > 2) {
+					history = history.slice(0, Math.floor(history.length / 2));
+					localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+				}
+			}
+		}
+
+		function deleteFromHistory(videoId: string) {
+			let history = getHistory();
+			history = history.filter(item => item.videoId !== videoId);
+			localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+			loadHistory();
+
+			// If deleted item is currently viewed, reset placeholder
+			if (activeTranscript && activeTranscript.videoId === videoId) {
+				activeTranscript = null;
+				showPlaceholder();
+			}
+		}
+
+		function handleClearHistory() {
+			if (confirm('Are you sure you want to clear all archived transcripts? This cannot be undone.')) {
+				localStorage.removeItem(HISTORY_KEY);
+				loadHistory();
+				if (activeTranscript) {
+					activeTranscript = null;
+					showPlaceholder();
+				}
+			}
+		}
+
+		// Renders History List
+		function loadHistory() {
+			const history = getHistory();
+			
+			if (history.length === 0) {
+				emptyHistory.classList.remove('hidden');
+				clearHistoryBtn.classList.add('hidden');
+				// Remove all items in container except the empty state element
+				const items = historyContainer.querySelectorAll('.history-item-card');
+				items.forEach(el => el.remove());
+				return;
+			}
+
+			emptyHistory.classList.add('hidden');
+			clearHistoryBtn.classList.remove('hidden');
+
+			// Remove old items to recreate
+			const items = historyContainer.querySelectorAll('.history-item-card');
+			items.forEach(el => el.remove());
+
+			history.forEach((item) => {
+				const card = document.createElement('div');
+				card.className = "history-item-card border-2 border-black bg-white p-3 rounded-md hover:bg-neo-yellow/10 hover:shadow-[3px_3px_0px_rgba(0,0,0,1)] transition-all cursor-pointer flex gap-3 items-center group justify-between";
+				
+				// Left section (Thumbnail and metadata details)
+				const clickArea = document.createElement('div');
+				clickArea.className = "flex gap-3 items-center flex-1 min-w-0";
+				clickArea.addEventListener('click', () => {
+					loadActiveTranscript(item);
+				});
+
+				const thumb = document.createElement('img');
+				thumb.src = `https://img.youtube.com/vi/${item.videoId}/mqdefault.jpg`;
+				thumb.alt = "Video thumbnail";
+				thumb.className = "w-16 h-10 object-cover border border-black shrink-0";
+				
+				const details = document.createElement('div');
+				details.className = "flex flex-col min-w-0 flex-1";
+
+				const titleEl = document.createElement('h4');
+				titleEl.className = "text-xs font-black truncate text-black uppercase leading-tight";
+				titleEl.innerText = item.title;
+
+				const timeEl = document.createElement('span');
+				timeEl.className = "text-[10px] text-black/50 font-bold mt-1";
+				timeEl.innerText = new Date(item.timestamp).toLocaleDateString(undefined, {
+					month: 'short',
+					day: 'numeric',
+					hour: '2-digit',
+					minute: '2-digit'
+				});
+
+				details.appendChild(titleEl);
+				details.appendChild(timeEl);
+				clickArea.appendChild(thumb);
+				clickArea.appendChild(details);
+
+				// Right section (Delete button)
+				const deleteBtn = document.createElement('button');
+				deleteBtn.type = 'button';
+				deleteBtn.className = "border border-black bg-neo-orange hover:bg-red-400 p-1.5 rounded transition-all text-xs cursor-pointer shadow-[1px_1px_0px_rgba(0,0,0,1)] hover:scale-105 active:scale-95";
+				deleteBtn.innerHTML = "🗑️";
+				deleteBtn.title = "Delete record";
+				deleteBtn.addEventListener('click', (e) => {
+					e.stopPropagation(); // Avoid loading transcript when deleting
+					deleteFromHistory(item.videoId);
+				});
+
+				card.appendChild(clickArea);
+				card.appendChild(deleteBtn);
+				historyContainer.appendChild(card);
+			});
+		}
+
+	</script>
 </Layout>
