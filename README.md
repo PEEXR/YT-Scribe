@@ -1,46 +1,68 @@
-# Astro Starter Kit: Basics
+# YT-Scribe
 
-```sh
-npm create astro@latest -- --template basics
+A **Neo-Brutalist** YouTube Transcript Extractor. Paste a YouTube URL, extract captions in any available language, search, copy, or download as `.txt` / `.json`.
+
+![YT-Scribe demo](public/export-1781495071663.gif)
+
+## Tech Stack
+
+- **Astro** v6 (SSR with Node adapter)
+- **Tailwind CSS** v4 via `@tailwindcss/vite`
+- **youtube-transcript** (npm) + InnerTube API / HTML scraping fallbacks
+- **Neo-Brutalist** design system (see [DESIGN.md](./DESIGN.md))
+
+## Getting Started
+
+```bash
+# Install dependencies
+npm install
+
+# Start the dev server (http://localhost:4321)
+npm run dev
+
+# Production build
+npm run build
+
+# Preview the production build
+npm run preview
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+Requires **Node.js >= 22.12.0**.
 
-## 🚀 Project Structure
+## Usage
 
-Inside of your Astro project, you'll see the following folders and files:
+1. Open the app in your browser
+2. Paste a YouTube video URL (watch, Shorts, live, or embed)
+3. Select a language if captions are available in multiple languages
+4. View the transcript in **Timeline** or **Plain Text** mode
+5. Click a timestamp line to open the video at that moment
+6. Search within the transcript, copy to clipboard, or download
 
-```text
-/
-├── public/
-│   └── favicon.svg
-├── src
-│   ├── assets
-│   │   └── astro.svg
-│   ├── components
-│   │   └── Welcome.astro
-│   ├── layouts
-│   │   └── Layout.astro
-│   └── pages
-│       └── index.astro
-└── package.json
+## API
+
+`POST /api/transcript`
+
+```json
+{ "url": "https://www.youtube.com/watch?v=...", "lang": "en" }
 ```
 
-To learn more about the folder structure of an Astro project, refer to [our guide on project structure](https://docs.astro.build/en/basics/project-structure/).
+Returns `{ videoId, title, languageCode, languageName, lines[], availableLanguages[] }`.
 
-## 🧞 Commands
+## Project Structure
 
-All commands are run from the root of the project, from a terminal:
+```
+src/
+├── pages/
+│   ├── index.astro         # Main SPA page
+│   └── api/
+│       └── transcript.ts   # Transcript extraction API
+├── layouts/
+│   └── Layout.astro        # HTML shell + fonts
+├── styles/
+│   └── global.css          # Tailwind + Neo-Brutalist tokens
+└── assets/                 # Static images
+```
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+## Design
 
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+This project follows a **NEO-UI** Neo-Brutalist design language defined in `DESIGN.md` — heavy borders, solid shadows, high contrast, and a warm neutral palette.
