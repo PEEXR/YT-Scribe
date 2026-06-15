@@ -2,59 +2,85 @@
 import Layout from '../layouts/Layout.astro';
 ---
 
-<Layout title="YT-Scribe 📝 | YouTube Transcript Extractor">
-	<main class="max-w-7xl mx-auto p-4 md:p-8 flex flex-col gap-8 min-h-screen">
-		<!-- Header Banner -->
-		<header class="neo-card bg-neo-yellow p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-			<div>
-				<h1 class="text-3xl md:text-5xl font-extrabold uppercase tracking-tight mb-2">
-					YT-Scribe 📝
-				</h1>
-				<p class="text-md md:text-lg font-bold text-black/80 max-w-xl">
-					The Neo-Brutalist YouTube Transcript Extractor. Paste a link, fetch subtitles, search keywords, and seek directly inside the video.
-				</p>
-			</div>
-			<div class="flex items-center gap-2 border-2 border-black bg-white p-3 rounded-md shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] w-fit">
-				<span class="inline-block w-3 h-3 rounded-full bg-green-500 animate-pulse border-2 border-black"></span>
-				<span class="font-bold text-xs uppercase tracking-wider">Local Archives Online</span>
-			</div>
-		</header>
+<Layout title="YT-Scribe | YouTube Transcript Extractor">
+	<main class="max-w-7xl mx-auto p-4 md:p-8 flex flex-col gap-8 min-h-screen relative z-10">
+		<!-- Header + Paste | Archives Row -->
+		<div class="flex flex-col lg:flex-row gap-8 items-stretch">
+			<div class="flex flex-col gap-8 flex-1 w-full min-w-0">
+				<header class="neo-card bg-neo-yellow p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+					<div>
+						<h1 class="text-3xl md:text-5xl font-extrabold uppercase tracking-tight mb-2">
+							YT-Scribe
+						</h1>
+						<p class="text-md md:text-lg font-bold text-black/80 max-w-xl">
+							The Neo-Brutalist Themed YouTube Transcript Extractor. Because I'd rather build something I'd actually use than having to use a subpar product. 
+						</p>
+					</div>
+					<div class="flex items-center gap-2 border-2 border-black bg-white p-3 rounded-md shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] w-fit shrink-0">
+						<span class="inline-block w-3 h-3 rounded-full bg-green-500 animate-pulse border-2 border-black"></span>
+						<span class="font-bold text-xs uppercase tracking-wider">Local Archives Online</span>
+					</div>
+				</header>
 
-		<!-- Paste Section -->
-		<section class="neo-card p-6 bg-white flex flex-col gap-4">
-			<h2 class="text-xl md:text-2xl font-black uppercase">
-				1. Paste Video Link
-			</h2>
-			<form id="fetch-form" class="flex flex-col md:flex-row gap-4">
-				<div class="flex-1 relative">
-					<input 
-						type="url" 
-						id="url-input" 
-						required 
-						placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ" 
-						class="neo-input w-full pr-12 text-md md:text-lg"
-					/>
-					<button 
-						type="button" 
-						id="clear-input-btn" 
-						class="absolute right-3 top-1/2 -translate-y-1/2 font-bold text-lg text-black/50 hover:text-black hidden"
-						title="Clear input"
-					>
-						✖
-					</button>
+				<section class="neo-card p-6 flex flex-col gap-4">
+					<h2 class="text-xl md:text-2xl font-black uppercase">
+						1. Paste Video Link
+					</h2>
+					<form id="fetch-form" class="flex flex-col md:flex-row gap-4">
+						<div class="flex-1 relative">
+							<input 
+								type="url" 
+								id="url-input" 
+								required 
+								placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ" 
+								class="neo-input w-full pr-12 text-md md:text-lg"
+							/>
+							<button 
+								type="button" 
+								id="clear-input-btn" 
+								class="absolute right-3 top-1/2 -translate-y-1/2 font-bold text-lg text-black/50 hover:text-black hidden"
+								title="Clear input"
+							>
+								✖
+							</button>
+						</div>
+						<button type="submit" id="submit-btn" class="neo-btn font-extrabold text-md md:text-lg flex gap-2 shrink-0">
+							<span>Fetch Transcript</span>
+							<span id="btn-icon">⚡</span>
+						</button>
+					</form>
+				</section>
+			</div>
+
+			<!-- History Archives Panel -->
+			<section class="w-full flex flex-col shrink-0 lg:sticky lg:top-8 lg:w-72 lg:max-h-[calc(60vh-6rem)]">
+				<div class="neo-card p-6 flex flex-col gap-4 flex-1 min-h-0">
+					<div class="flex justify-between items-center shrink-0">
+						<h2 class="text-xl font-white uppercase">
+							Archives
+						</h2>
+						<button 
+							type="button" 
+							id="clear-history-btn" 
+							class="text-sm font-black uppercase border-2 border-black bg-neo-orange hover:bg-red-400 px-3 py-0.5 rounded transition-all cursor-pointer shadow-[1px_1px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-[1px_1px_0px_rgba(0,0,0,1)]"
+							title="Clear all stored history"
+						>
+							Clear All
+						</button>
+					</div>
+					<div id="history-container" class="flex flex-col gap-3 overflow-y-auto pr-1 min-h-0 flex-1">
+						<div id="empty-history" class="text-center py-8 border-2 border-dashed border-black/30 rounded-md text-black/50 font-bold text-sm">
+							Your local transcript archive is empty. 
+						</div>
+					</div>
 				</div>
-				<button type="submit" id="submit-btn" class="neo-btn font-extrabold text-md md:text-lg flex gap-2">
-					<span>Fetch Transcript</span>
-					<span id="btn-icon">⚡</span>
-				</button>
-			</form>
-			
-		</section>
+			</section>
+		</div>
 
 		<!-- Error Alert (hidden by default) -->
 		<div id="error-alert" class="neo-card p-4 text-black hidden flex-col md:flex-row md:items-center justify-between gap-4">
 			<div class="flex items-center gap-3">
-				<span id="error-icon" class="text-3xl">⚠️</span>
+				<span id="error-icon" class="text-3xl"></span>
 				<div>
 					<h3 id="error-heading" class="font-extrabold uppercase text-lg">Extraction Failed</h3>
 					<p id="error-message" class="font-bold text-sm"></p>
@@ -66,39 +92,11 @@ import Layout from '../layouts/Layout.astro';
 			</button>
 		</div>
 
-		<!-- Dashboard Contents -->
-		<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-			
-			<!-- Left Panel: History Archives -->
-			<section class="lg:col-span-4 flex flex-col gap-6 lg:sticky lg:top-8">
-				<div class="neo-card p-6 bg-white flex flex-col gap-4">
-					<div class="flex justify-between items-center">
-						<h2 class="text-xl font-black uppercase">
-							Archives 📂
-						</h2>
-						<button 
-							type="button" 
-							id="clear-history-btn" 
-							class="neo-btn neo-btn-red py-1 px-3 text-xs uppercase"
-							title="Clear all stored history"
-						>
-							Clear All
-						</button>
-					</div>
-					<div id="history-container" class="flex flex-col gap-3 max-h-[500px] overflow-y-auto pr-1">
-						<!-- JavaScript inserts history items here -->
-						<div id="empty-history" class="text-center py-8 border-2 border-dashed border-black/30 rounded-md text-black/50 font-bold text-sm">
-							Your local transcript archive is empty. 
-						</div>
-					</div>
-				</div>
-			</section>
-
-			<!-- Right Panel: Active Viewer -->
-			<section class="lg:col-span-8 flex flex-col gap-6">
+		<!-- Active Viewer Section -->
+		<section class="flex flex-col gap-6">
 				
 				<!-- Placeholder State -->
-				<div id="viewer-placeholder" class="neo-card p-12 bg-white text-center flex flex-col items-center justify-center gap-4 min-h-[400px]">
+				<div id="viewer-placeholder" class="neo-card p-12 text-center flex flex-col items-center justify-center gap-4 min-h-[400px]">
 					<span class="text-6xl animate-bounce">📺</span>
 					<h2 class="text-2xl font-black uppercase tracking-wide">No Active Transcript</h2>
 					<p class="text-black/60 font-bold max-w-md">
@@ -107,7 +105,7 @@ import Layout from '../layouts/Layout.astro';
 				</div>
 
 				<!-- Loading State -->
-				<div id="viewer-loading" class="neo-card p-12 bg-white text-center hidden flex-col items-center justify-center gap-6 min-h-[400px]">
+				<div id="viewer-loading" class="neo-card p-12 text-center hidden flex-col items-center justify-center gap-6 min-h-[400px]">
 					<div class="w-16 h-16 border-4 border-black border-t-neo-yellow rounded-full animate-spin"></div>
 					<div class="flex flex-col gap-2">
 						<h2 class="text-2xl font-black uppercase tracking-widest animate-pulse">Extracting Transcript...</h2>
@@ -119,7 +117,7 @@ import Layout from '../layouts/Layout.astro';
 				</div>
 
 				<!-- Active Transcript Viewer -->
-				<div id="viewer-content" class="neo-card bg-white hidden overflow-hidden flex flex-col">
+				<div id="viewer-content" class="neo-card hidden overflow-hidden flex flex-col">
 					
 					<!-- Header / Meta section -->
 					<div class="p-6 border-b-3 border-black bg-gray-50 flex flex-col gap-4">
@@ -162,12 +160,12 @@ import Layout from '../layouts/Layout.astro';
 							id="toggle-player-btn" 
 							class="neo-btn neo-btn-purple py-2 px-4 text-xs font-extrabold uppercase self-start"
 						>
-							🎬 Show Video Player
+							Show Video Player
 						</button>
 					</div>
 
 					<!-- Toolbar (Search, Filter, Export) -->
-					<div class="p-6 border-b-3 border-black flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white">
+					<div class="p-6 border-b-3 border-black flex flex-col md:flex-row md:items-center justify-between gap-4">
 						<!-- Search box -->
 						<div class="flex-1 relative max-w-md">
 							<input 
@@ -176,7 +174,7 @@ import Layout from '../layouts/Layout.astro';
 								placeholder="Search words in transcript..." 
 								class="neo-input w-full py-2 pl-9 text-sm"
 							/>
-							<span class="absolute left-3 top-1/2 -translate-y-1/2 text-black/40">🔍</span>
+							<span class="absolute left-3 top-1/2 -translate-y-1/2 text-black/40"></span>
 							<button 
 								id="clear-search-btn" 
 								class="absolute right-3 top-1/2 -translate-y-1/2 font-bold text-xs text-black/50 hover:text-black hidden"
@@ -188,37 +186,37 @@ import Layout from '../layouts/Layout.astro';
 						<!-- Toggles and Exports -->
 						<div class="flex flex-wrap items-center gap-3 shrink-0">
 							<!-- Format Toggle -->
-							<div class="flex border-3 border-black rounded-md overflow-hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+							<div class="flex border-3 border-black rounded-md overflow-hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] h-[36px]">
 								<button 
 									id="btn-view-timeline" 
-									class="px-4 py-2 text-xs font-extrabold uppercase bg-neo-yellow text-black border-r-2 border-black"
+									class="px-4 text-xs font-extrabold uppercase bg-neo-yellow text-black border-r-2 border-black"
 								>
 									Timeline
 								</button>
 								<button 
 									id="btn-view-text" 
-									class="px-4 py-2 text-xs font-extrabold uppercase bg-white text-black hover:bg-gray-100"
+									class="px-4 text-xs font-extrabold uppercase bg-white text-black hover:bg-gray-100"
 								>
 									Plain Text
 								</button>
 							</div>
 
 							<!-- Language Selector -->
-							<select id="lang-selector" class="border-3 border-black rounded-md bg-white px-2 py-1.5 text-xs font-extrabold uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hidden" title="Select transcript language">
+							<select id="lang-selector" class="h-[36px] border-3 border-black rounded-md bg-white px-2 text-xs font-extrabold uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hidden" title="Select transcript language">
 							</select>
 
 							<!-- Action Actions dropdown or buttons -->
-							<button id="copy-btn" class="neo-btn py-2 px-4 text-xs font-extrabold bg-white hover:bg-gray-100 flex gap-1 items-center">
-								📋 <span>Copy</span>
+							<button id="copy-btn" class="neo-btn h-[36px] px-4 text-xs font-extrabold bg-white hover:bg-gray-100 flex gap-1 items-center">
+								<span>Copy</span>
 							</button>
 							
 							<div class="relative inline-block text-left" id="download-menu-container">
 								<button 
 									type="button"
 									id="download-btn" 
-									class="neo-btn neo-btn-cyan py-2 px-4 text-xs font-extrabold flex gap-1 items-center"
+									class="neo-btn neo-btn-cyan h-[36px] px-4 text-xs font-extrabold flex gap-1 items-center"
 								>
-									📥 <span>Download</span>
+									<span>Download</span>
 								</button>
 								<div id="download-dropdown" class="origin-top-right absolute right-0 mt-2 w-40 border-3 border-black bg-white rounded-md shadow-[4px_4px_0px_rgba(0,0,0,1)] z-50 hidden">
 									<div class="py-1">
@@ -235,7 +233,7 @@ import Layout from '../layouts/Layout.astro';
 					</div>
 
 					<!-- Content Viewport -->
-					<div class="flex-1 p-6 max-h-[600px] overflow-y-auto bg-gray-50" id="transcript-viewport">
+					<div class="flex-1 p-6 max-h-[70vh] overflow-y-auto bg-gray-50" id="transcript-viewport">
 						<!-- Timeline view content -->
 						<div id="view-timeline-content" class="flex flex-col gap-3">
 							<!-- Dynamic lines -->
@@ -254,12 +252,11 @@ import Layout from '../layouts/Layout.astro';
 					</div>
 				</div>
 
-			</section>
-		</div>
+		</section>
 	</main>
 
 	<!-- Footer branding -->
-	<footer class="max-w-7xl mx-auto p-4 md:p-8 text-center text-sm font-bold border-t-3 border-black bg-white/50 neo-card mt-8 mb-8">
+	<footer class="max-w-7xl mx-auto p-4 md:p-8 text-center text-sm font-bold border-t-3 border-black bg-white/50 neo-card mt-8 mb-8 relative z-10">
 		<p>© 2026 YT-Scribe. Build using Astro, Tailwind CSS v4, and NEO-UI Design Language.</p>
 	</footer>
 
@@ -331,7 +328,6 @@ import Layout from '../layouts/Layout.astro';
 		const dlJsonBtn = document.getElementById('dl-json-btn') as HTMLButtonElement;
 		const resultsCount = document.getElementById('results-count') as HTMLSpanElement;
 		const langSelector = document.getElementById('lang-selector') as HTMLSelectElement;
-
 		// Initialize application
 		document.addEventListener('DOMContentLoaded', () => {
 			loadHistory();
@@ -577,13 +573,13 @@ import Layout from '../layouts/Layout.astro';
 			
 			// Button highlight swap
 			if (mode === 'timeline') {
-				btnViewTimeline.className = "px-4 py-2 text-xs font-extrabold uppercase bg-neo-yellow text-black border-r-2 border-black";
-				btnViewText.className = "px-4 py-2 text-xs font-extrabold uppercase bg-white text-black hover:bg-gray-100";
+				btnViewTimeline.className = "px-4 text-xs font-extrabold uppercase bg-neo-yellow text-black border-r-2 border-black";
+				btnViewText.className = "px-4 text-xs font-extrabold uppercase bg-white text-black hover:bg-gray-100";
 				viewTimelineContent.classList.remove('hidden');
 				viewTextContent.classList.add('hidden');
 			} else {
-				btnViewTimeline.className = "px-4 py-2 text-xs font-extrabold uppercase bg-white text-black hover:bg-gray-100 border-r-2 border-black";
-				btnViewText.className = "px-4 py-2 text-xs font-extrabold uppercase bg-neo-yellow text-black";
+				btnViewTimeline.className = "px-4 text-xs font-extrabold uppercase bg-white text-black hover:bg-gray-100 border-r-2 border-black";
+				btnViewText.className = "px-4 text-xs font-extrabold uppercase bg-neo-yellow text-black";
 				viewTimelineContent.classList.add('hidden');
 				viewTextContent.classList.remove('hidden');
 			}
@@ -818,7 +814,7 @@ import Layout from '../layouts/Layout.astro';
 				
 				// Show visual indicator on button
 				const origHtml = copyBtn.innerHTML;
-				copyBtn.innerHTML = `✅ <span class="font-extrabold">Copied!</span>`;
+				copyBtn.innerHTML = `<span class="font-extrabold">Copied!</span>`;
 				copyBtn.classList.remove('bg-white');
 				copyBtn.classList.add('bg-neo-green');
 				
@@ -883,7 +879,7 @@ import Layout from '../layouts/Layout.astro';
 
 		/* History Manager (localStorage) */
 		const HISTORY_KEY = 'yt_scribe_archives';
-		const MAX_HISTORY_ITEMS = 15;
+		const MAX_HISTORY_ITEMS = 10;
 
 		function getHistory(): TranscriptHistoryItem[] {
 			try {
@@ -1010,7 +1006,7 @@ import Layout from '../layouts/Layout.astro';
 				const deleteBtn = document.createElement('button');
 				deleteBtn.type = 'button';
 				deleteBtn.className = "border border-black bg-neo-orange hover:bg-red-400 p-1.5 rounded transition-all text-xs cursor-pointer shadow-[1px_1px_0px_rgba(0,0,0,1)] hover:scale-105 active:scale-95";
-				deleteBtn.innerHTML = "🗑️";
+				deleteBtn.innerHTML = "X";
 				deleteBtn.title = "Delete record";
 				deleteBtn.addEventListener('click', (e) => {
 					e.stopPropagation(); // Avoid loading transcript when deleting

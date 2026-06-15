@@ -17,6 +17,18 @@
     color: #000000;
     font-family: var(--font-sans);
   }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image:
+      linear-gradient(rgba(0,0,0,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,0,0,0.06) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
   
   ::selection {
     background-color: var(--color-neo-yellow);
@@ -112,3 +124,6 @@
   border: 3px solid var(--color-neo-bg);
   border-radius: 6px;
 }
+
+
+

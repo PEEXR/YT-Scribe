@@ -9,6 +9,34 @@ interface LanguageInfo {
 }
 
 async function getAvailableLanguages(videoId: string): Promise<LanguageInfo[]> {
+  // Strategy 1: InnerTube API (most reliable, used by the library)
+  try {
+    const res = await fetch('https://www.youtube.com/youtubei/v1/player', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'com.google.android.youtube/19.09.37 (Linux; Android 13)',
+      },
+      body: JSON.stringify({
+        context: {
+          client: { clientName: 'ANDROID', clientVersion: '19.09.37', androidSdkVersion: 33, hl: 'en', gl: 'US' },
+        },
+        videoId,
+      }),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      const tracks = json?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+      if (Array.isArray(tracks) && tracks.length > 0) {
+        const seen = new Set<string>();
+        return tracks
+          .filter((t: any) => { if (seen.has(t.languageCode)) return false; seen.add(t.languageCode); return true; })
+          .map((t: any) => ({ code: t.languageCode, name: t.name?.simpleText || t.languageCode }));
+      }
+    }
+  } catch (e) { console.error('InnerTube languages failed:', e); }
+
+  // Strategy 2: HTML scraping via "captionTracks": direct JSON array
   try {
     const res = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
       headers: {
@@ -17,22 +45,64 @@ async function getAvailableLanguages(videoId: string): Promise<LanguageInfo[]> {
     });
     if (!res.ok) return [];
     const html = await res.text();
-    const match = html.match(/ytInitialPlayerResponse\s*=\s*({.*?});/);
-    if (!match) return [];
-    const data = JSON.parse(match[1]);
-    const captionTracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
-    if (!Array.isArray(captionTracks)) return [];
+    const idx = html.indexOf('"captionTracks":');
+    if (idx !== -1) {
+      const start = idx + '"captionTracks":'.length;
+      let depth = 0;
+      let end = start;
+      let found = false;
+      for (let i = start; i < html.length; i++) {
+        if (html[i] === '[') { depth++; found = true; }
+        else if (html[i] === ']') { depth--; if (found && depth === 0) { end = i + 1; break; } }
+      }
+      if (found && depth === 0) {
+        const tracks = JSON.parse(html.slice(start, end));
+        if (Array.isArray(tracks) && tracks.length > 0) {
+          const seen = new Set<string>();
+          return tracks
+            .filter((t: any) => { if (seen.has(t.languageCode)) return false; seen.add(t.languageCode); return true; })
+            .map((t: any) => ({ code: t.languageCode, name: t.name?.simpleText || t.languageCode }));
+        }
+      }
+    }
+  } catch (e) { console.error('HTML captionTracks failed:', e); }
+
+  // Strategy 3: HTML scraping via ytInitialPlayerResponse
+  try {
+    const res = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36,gzip(gfe)',
+      },
+    });
+    if (!res.ok) return [];
+    const html = await res.text();
+
+    const prefixes = ['var ytInitialPlayerResponse = ', 'window.ytInitialPlayerResponse = '];
+    let jsonStr: string | null = null;
+    for (const prefix of prefixes) {
+      const si = html.indexOf(prefix);
+      if (si === -1) continue;
+      const js = si + prefix.length;
+      let depth = 0;
+      for (let i = js; i < html.length; i++) {
+        if (html[i] === '{') depth++;
+        else if (html[i] === '}') { depth--; if (depth === 0) { jsonStr = html.slice(js, i + 1); break; } }
+      }
+      if (jsonStr) break;
+    }
+    if (!jsonStr) return [];
+
+    const data = JSON.parse(jsonStr);
+    const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+    if (!Array.isArray(tracks) || tracks.length === 0) return [];
+
     const seen = new Set<string>();
-    return captionTracks
-      .filter((t: any) => {
-        if (seen.has(t.languageCode)) return false;
-        seen.add(t.languageCode);
-        return true;
-      })
+    return tracks
+      .filter((t: any) => { if (seen.has(t.languageCode)) return false; seen.add(t.languageCode); return true; })
       .map((t: any) => ({ code: t.languageCode, name: t.name?.simpleText || t.languageCode }));
-  } catch {
-    return [];
-  }
+  } catch (e) { console.error('ytInitialPlayerResponse failed:', e); }
+
+  return [];
 }
 
 function extractVideoId(url: string): string | null {
